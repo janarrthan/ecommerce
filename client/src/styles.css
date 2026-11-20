@@ -1,0 +1,102 @@
+:root {
+  --color-text: #171717;
+  --color-background: #fff;
+  --color-surface: #f3f3f3;
+  --color-border: #d2d2d2;
+  --color-focus: #145bba;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--color-text);
+  background: var(--color-background);
+  line-height: 1.6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+h1,
+h2 {
+  line-height: 1.2;
+}
+h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+}
+p {
+  max-width: 75ch;
+  overflow-wrap: anywhere;
+}
+label {
+  display: block;
+  font-weight: 600;
+}
+button,
+input,
+select {
+  font: inherit;
+  min-height: 2.75rem;
+  max-width: 100%;
+}
+input,
+select {
+  display: block;
+  padding: 0.5rem;
+  border: 1px solid #777;
+  background: white;
+  color: inherit;
+}
+button {
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0.5rem 0.5rem 0;
+  cursor: pointer;
+  color: white;
+  background: #171717;
+  border: 1px solid #171717;
+}
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+fieldset {
+  border: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+  padding: 1rem;
+}
+fieldset > div {
+  margin-bottom: 1rem;
+}
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+[role="alert"] {
+  color: #a11626;
+}
+.imageFallback {
+  display: grid;
+  place-items: center;
+  min-height: 15rem;
+  background: var(--color-surface);
+}
+.cartItems {
+  list-style: none;
+  padding: 0;
+}
+.cartItems > li {
+  border-bottom: 1px solid var(--color-border);
+  padding-block: 2rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

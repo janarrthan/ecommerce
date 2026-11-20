@@ -1,6 +1,6 @@
-# Eccommerce
+# Ecommerce
 
-Eccommerce is a headless commerce backend built with TypeScript, Express, PostgreSQL, and Prisma. It provides
+Ecommerce is a headless commerce backend built with TypeScript, Express, PostgreSQL, and Prisma. It provides
 storefront and administrative APIs for a single store, with server-side pricing, session authentication, and an
 authenticated cart.
 
