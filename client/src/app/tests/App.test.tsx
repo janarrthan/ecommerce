@@ -130,11 +130,11 @@ describe("storefront composition", () => {
     });
 
     mount();
-    // Temporary: the category choices read the same unfiltered product list, so one bad response shows two alerts.
-    // Expect one alert again when GET /api/storefront/categories replaces that query.
-    const alerts = await screen.findAllByRole("alert");
-    expect(alerts).toHaveLength(2);
-    for (const alert of alerts) expect(alert).toHaveTextContent("unexpected response");
+    // findByRole fails when it finds two alerts. The categories have their own endpoint, so only the product list fails.
+    expect(await screen.findByRole("alert")).toHaveTextContent("unexpected response");
+    // Wait for the category list too, so a second alert arriving later would still fail the test.
+    await waitFor(() => expect(screen.getByLabelText("Category")).toBeEnabled());
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(reads).toBe(1);
     expect(screen.queryByRole("heading", { name: "Everyday Cotton Hoodie" })).not.toBeInTheDocument();
   });

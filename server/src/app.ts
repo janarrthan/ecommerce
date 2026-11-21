@@ -11,6 +11,7 @@ import { readinessRouter } from "./shared/http/readiness.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { cartRouter } from "./modules/cart/cart.routes.js";
+import { categoriesRouter } from "./modules/categories/categories.routes.js";
 import { pricingRouter } from "./modules/pricing/pricing.routes.js";
 import { productsRouter } from "./modules/products/products.routes.js";
 
@@ -39,6 +40,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/storefront/cart", cartRouter);
+  app.use("/api/storefront/categories", categoriesRouter);
   app.use("/api/storefront/pricing", pricingRouter);
   app.use("/api/storefront/products", productsRouter);
 

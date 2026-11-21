@@ -93,13 +93,13 @@ environment.
 
 ## API overview
 
-| Area           | Endpoints                                                                                                                                                       |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Health         | `GET /health`, `GET /ready`                                                                                                                                     |
-| Authentication | `GET /api/auth/me`, `GET /api/auth/csrf-token`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`                                      |
-| Storefront     | `GET /api/storefront/pricing`, `GET /api/storefront/products`, `GET /api/storefront/products/:productSlug`, `GET /api/storefront/products/:productSlug/variant` |
-| Cart           | `GET /api/storefront/cart`, `PUT /api/storefront/cart/items/:variantId`, `DELETE /api/storefront/cart/items/:variantId`                                         |
-| Administration | `GET /api/admin/context`, product option and variant-image endpoints, and pricing settings and exchange-rate endpoints under `/api/admin`                       |
+| Area           | Endpoints                                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Health         | `GET /health`, `GET /ready`                                                                                                                                                                       |
+| Authentication | `GET /api/auth/me`, `GET /api/auth/csrf-token`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`                                                                        |
+| Storefront     | `GET /api/storefront/pricing`, `GET /api/storefront/categories`, `GET /api/storefront/products`, `GET /api/storefront/products/:productSlug`, `GET /api/storefront/products/:productSlug/variant` |
+| Cart           | `GET /api/storefront/cart`, `PUT /api/storefront/cart/items/:variantId`, `DELETE /api/storefront/cart/items/:variantId`                                                                           |
+| Administration | `GET /api/admin/context`, product option and variant-image endpoints, and pricing settings and exchange-rate endpoints under `/api/admin`                                                         |
 
 Login or registration establishes a session cookie. Authenticated mutation requests, including logout and cart
 changes, must send the token returned by `GET /api/auth/csrf-token` in the `x-csrf-token` header. Browser clients must

@@ -1,37 +1,11 @@
 import { type SubmitEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { RequestError } from "../../../shared/ui/RequestError";
 import { formatMoney } from "../../../shared/lib/money";
-import { usePublicQueryClient } from "../../../shared/api/public-query-context";
-import { productsQueryOptions, useProducts } from "../catalog.queries";
+import { useCategories, useProducts } from "../catalog.queries";
 import { ProductImage } from "../components/ProductImage";
 import type { Product } from "../catalog.schemas";
 import styles from "../catalog.module.css";
-
-type Category = Product["categories"][number];
-
-/**
- * Collects each category once, sorted by name, from the categories attached to every product.
- *
- * The Desk Organizer Set and the Ergonomic Laptop Stand are both in "Workspace", but they produce one "Workspace"
- * choice, because the categories are keyed by their slug.
- *
- * Temporary limitation: the storefront API has no category-list endpoint yet, so this page downloads the complete
- * product list, with every variant, price, and image, only to read the category names from it. That works only while
- * the product list is unpaginated. Once the server returns one page of products at a time, a category used only by
- * products on a later page would be missing from the choices.
- *
- * A future `GET /api/storefront/categories` endpoint replaces this function and the unfiltered product query in
- * `ProductListPage`. The backend and client tasks are recorded in `eccommerce/progress.md` under "Recorded Temporary
- * Limitations From The Client Rebuild".
- */
-function uniqueCategories(products: Product[]): Category[] {
-  const bySlug = new Map(
-    products.flatMap((product) => product.categories.map((entry) => [entry.slug, entry] as const)),
-  );
-  return [...bySlug.values()].sort((left, right) => left.name.localeCompare(right.name));
-}
 
 /**
  * Builds the URL query for the submitted filters, such as "currency=EUR&search=hoodie".
@@ -39,12 +13,18 @@ function uniqueCategories(products: Product[]): Category[] {
  * Empty or space-only fields are left out, so clearing the search box removes it from the URL instead of searching
  * for "". The currency is always kept, so filtering never switches the customer back to the base currency.
  */
-function filterParams(fields: FormData, currency: string): URLSearchParams {
+function filterParams(fields: FormData, currency: string, currentCategory: string): URLSearchParams {
   const next = new URLSearchParams({ currency });
+  // A disabled field is left out of the form data. While the category list is loading or has failed, keep the
+  // category from the URL, so searching inside Apparel does not silently drop Apparel.
+  const category = fields.has("category") ? fields.get("category") : currentCategory;
 
-  for (const field of ["search", "category"]) {
-    const value = String(fields.get(field) ?? "").trim();
-    if (value) next.set(field, value);
+  for (const [name, value] of [
+    ["search", fields.get("search")],
+    ["category", category],
+  ] as const) {
+    const trimmed = String(value ?? "").trim();
+    if (trimmed) next.set(name, trimmed);
   }
 
   return next;
@@ -57,32 +37,22 @@ function cheapestVariant(product: Product) {
 
 /** Keeps shareable search and category filters in the URL and lets the server filter the catalog. */
 export function ProductListPage({ currency }: { currency: string }) {
-  const publicClient = usePublicQueryClient();
   const [params, setParams] = useSearchParams();
   const search = params.get("search") ?? "";
   const category = params.get("category") ?? "";
   const query = useProducts(currency, search, category);
+  const categoryQuery = useCategories();
+  const categories = categoryQuery.data?.categories ?? [];
+  // Based on data, not on success: a failed background refresh keeps the last list, so the field stays usable.
+  const categoriesReady = categoryQuery.data !== undefined;
 
-  // Read the category choices from the unfiltered list, with no search and no category. The filtered list would hide
-  // every other category once the customer picked one: choosing Apparel leaves only the hoodie, so Workspace and
-  // Accessories would disappear from the choices.
-  // Temporary: the category endpoint described above `uniqueCategories` replaces this query.
-  const categoryQuery = useQuery(
-    {
-      ...productsQueryOptions(currency, "", ""),
-      staleTime: 60_000,
-      select: ({ products }) => uniqueCategories(products),
-    },
-    publicClient,
-  );
-  const categories = categoryQuery.data ?? [];
-
-  // A shared link may name a category that no current product uses. Keep it selectable so the form matches the URL.
+  // A shared link may name a category with no active product, such as an old bookmark. Keep it selectable so the
+  // form matches the URL. While the list loads, this option also shows the URL's category in the disabled field.
   const unlistedCategory = category !== "" && !categories.some((entry) => entry.slug === category);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    setParams(filterParams(new FormData(event.currentTarget), currency));
+    setParams(filterParams(new FormData(event.currentTarget), currency, category));
   }
 
   return (
@@ -96,7 +66,14 @@ export function ProductListPage({ currency }: { currency: string }) {
         </label>
         <label>
           Category
-          <select name="category" defaultValue={category} disabled={categoryQuery.isPending || categoryQuery.isError}>
+          {/* The key mounts a new field when the list arrives. A select applies defaultValue only once, so without it
+              a link such as ?category=apparel would show "All categories" after loading. */}
+          <select
+            key={categoriesReady ? "ready" : "waiting"}
+            name="category"
+            defaultValue={category}
+            disabled={!categoriesReady}
+          >
             <option value="">All categories</option>
             {unlistedCategory && <option value={category}>Selected category</option>}
             {categories.map((entry) => (
@@ -110,6 +87,7 @@ export function ProductListPage({ currency }: { currency: string }) {
         <Link to={`/?currency=${currency}`}>Clear filters</Link>
       </form>
       {categoryQuery.isError && <RequestError error={categoryQuery.error} retry={() => void categoryQuery.refetch()} />}
+
       {query.isPending ? (
         <p role="status">Loading products…</p>
       ) : query.isError ? (

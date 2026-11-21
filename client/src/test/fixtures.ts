@@ -1,4 +1,4 @@
-import type { Product } from "../features/catalog/catalog.schemas";
+import type { Category, Product } from "../features/catalog/catalog.schemas";
 
 /** Creates fresh response fixtures; changing one test's stock never changes the next test's product. */
 export function productFixture(): Product {
@@ -53,6 +53,18 @@ export function productFixture(): Product {
       },
     })),
   };
+}
+
+/**
+ * Creates the category list, sorted by name as the server sends it. Only Apparel has a product in `productFixture`,
+ * so seeing Accessories or Workspace proves the choices came from the category endpoint.
+ */
+export function categoriesFixture(): Category[] {
+  return [
+    { id: "accessories", name: "Accessories", slug: "accessories" },
+    { id: "apparel", name: "Apparel", slug: "apparel" },
+    { id: "workspace", name: "Workspace", slug: "workspace" },
+  ];
 }
 
 export const userFixture = () => ({

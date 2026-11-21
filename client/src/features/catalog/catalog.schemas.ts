@@ -36,6 +36,9 @@ export const variantSchema = z.object({
   images: z.array(imageSchema),
 });
 
+/** Validates one category, such as Apparel. An empty slug is rejected because it would clash with "All categories". */
+const categorySchema = z.object({ id: z.string().min(1), name: z.string().min(1), slug: z.string().min(1) });
+
 const optionSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -52,7 +55,7 @@ export const productSchema = z.object({
   options: z.array(optionSchema),
   images: z.array(imageSchema),
   variants: z.array(variantSchema),
-  categories: z.array(z.object({ id: z.string(), name: z.string(), slug: z.string() })),
+  categories: z.array(categorySchema),
 });
 
 /** Keeps availability consistent with variant presence and stock, so a null variant cannot be called in stock. */
@@ -67,6 +70,7 @@ export const resolvedVariantSchema = z.discriminatedUnion("availability", [
 
 export const productsResponseSchema = z.object({ products: z.array(productSchema) });
 export const productResponseSchema = z.object({ product: productSchema });
+export const categoriesResponseSchema = z.object({ categories: z.array(categorySchema) });
 export const pricingResponseSchema = z.object({
   pricing: z
     .object({
@@ -76,6 +80,7 @@ export const pricingResponseSchema = z.object({
     .refine((pricing) => pricing.currencies.some(({ code }) => code === pricing.baseCurrency)),
 });
 
+export type Category = z.infer<typeof categorySchema>;
 export type Product = z.infer<typeof productSchema>;
 export type Variant = z.infer<typeof variantSchema>;
 export type ResolvedVariant = z.infer<typeof resolvedVariantSchema>;
