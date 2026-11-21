@@ -1,5 +1,6 @@
 import { request } from "../../shared/api/request";
 import {
+  categoriesResponseSchema,
   pricingResponseSchema,
   productResponseSchema,
   productsResponseSchema,
@@ -12,6 +13,11 @@ const productPath = (slug: string) => `${productsPath}/${encodeURIComponent(slug
 /** Reads enabled currencies before a page requests prices, such as USD or EUR. */
 export function readPricing(signal?: AbortSignal) {
   return request("/api/storefront/pricing", pricingResponseSchema, { signal });
+}
+
+/** Lists the categories that have at least one active product, sorted by name. The list is the same in every currency. */
+export function listCategories(signal?: AbortSignal) {
+  return request("/api/storefront/categories", categoriesResponseSchema, { signal });
 }
 
 /** Lists products using server-side search and category filtering. Empty filters are omitted. */

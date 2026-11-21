@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { cartFixture, productFixture, userFixture } from "./fixtures";
+import { cartFixture, categoriesFixture, productFixture, userFixture } from "./fixtures";
 import type { User } from "../features/auth/auth.schemas";
 
 /**
@@ -47,6 +47,8 @@ export function installMockApi(
 
     if (url.pathname === "/api/storefront/pricing")
       return json({ pricing: { baseCurrency: "USD", currencies: [{ code: "USD", minorUnitDigits: 2 }] } });
+
+    if (url.pathname === "/api/storefront/categories") return json({ categories: categoriesFixture() });
 
     const product = productFixture();
 

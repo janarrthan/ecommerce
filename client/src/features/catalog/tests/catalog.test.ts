@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { productFixture } from "../../../test/fixtures";
-import { productSchema, resolvedVariantSchema } from "../catalog.schemas";
+import { categoriesFixture, productFixture } from "../../../test/fixtures";
+import { categoriesResponseSchema, productSchema, resolvedVariantSchema } from "../catalog.schemas";
 import { resolveVariant } from "../catalog.api";
+import { categoriesQueryOptions } from "../catalog.queries";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -19,6 +20,15 @@ describe("catalog contracts", () => {
       { variant: { ...variant, stock: -1 }, availability: "in_stock" },
     ])
       expect(resolvedVariantSchema.safeParse(response).success).toBe(false);
+  });
+  it("accepts the category list and rejects a category with an empty slug", () => {
+    const categories = categoriesFixture();
+    expect(categoriesResponseSchema.parse({ categories })).toEqual({ categories });
+    const blank = { categories: [{ id: "blank", name: "Blank", slug: "" }] };
+    expect(categoriesResponseSchema.safeParse(blank).success).toBe(false);
+  });
+  it("caches categories under one key that does not include the currency", () => {
+    expect(categoriesQueryOptions().queryKey).toEqual(["catalog", "categories"]);
   });
   it("encodes path segments and preserves every selected option value", async () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ variant: null, availability: "unavailable" }));

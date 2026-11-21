@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { usePublicQueryClient } from "../../shared/api/public-query-context";
-import { listProducts, readPricing, readProduct, resolveVariant } from "./catalog.api";
+import { listCategories, listProducts, readPricing, readProduct, resolveVariant } from "./catalog.api";
 
 /** Defines the enabled-currency query with a one-minute freshness period, such as a response containing USD and EUR. */
 export function pricingQueryOptions() {
@@ -15,6 +15,26 @@ export function pricingQueryOptions() {
 /** Loads the pricing configuration, such as the enabled USD and EUR currencies, using the standard options. */
 export function usePricing() {
   return useQuery(pricingQueryOptions(), usePublicQueryClient());
+}
+
+/**
+ * Defines the category-list query, such as Accessories, Apparel, and Workspace.
+ *
+ * The key has no currency, so switching from USD to EUR reuses the cached list instead of asking again. Categories
+ * change rarely, so the list stays fresh for one minute.
+ */
+export function categoriesQueryOptions() {
+  return queryOptions({
+    queryKey: ["catalog", "categories"],
+    queryFn: ({ signal }) => listCategories(signal),
+    staleTime: 60_000,
+    meta: { operation: "catalog.categories" },
+  });
+}
+
+/** Loads the category choices for the product filters with the standard options. */
+export function useCategories() {
+  return useQuery(categoriesQueryOptions(), usePublicQueryClient());
 }
 
 /** Separates cached catalog lists by currency, search text, and category. */
