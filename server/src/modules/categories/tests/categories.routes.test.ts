@@ -23,7 +23,7 @@ async function removeFixtures() {
  * same name. Apparel is linked to an active and an archived product, to prove it is still listed once.
  */
 async function createFixtures() {
-  const workspace = await prisma.category.create({data: { name: "Test Workspace", slug: `${slugPrefix}workspace` } });
+  const workspace = await prisma.category.create({ data: { name: "Test Workspace", slug: `${slugPrefix}workspace` } });
   const apparel = await prisma.category.create({ data: { name: "Test Apparel", slug: `${slugPrefix}apparel` } });
 
   const archivedOnly = await prisma.category.create({
