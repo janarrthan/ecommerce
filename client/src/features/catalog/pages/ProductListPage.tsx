@@ -87,7 +87,7 @@ export function ProductListPage({ currency }: { currency: string }) {
         <Link to={`/?currency=${currency}`}>Clear filters</Link>
       </form>
       {categoryQuery.isError && <RequestError error={categoryQuery.error} retry={() => void categoryQuery.refetch()} />}
-      
+
       {query.isPending ? (
         <p role="status">Loading products…</p>
       ) : query.isError ? (
