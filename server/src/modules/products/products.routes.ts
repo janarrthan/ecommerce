@@ -22,9 +22,9 @@ productsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const query = listProductsQuerySchema.parse(req.query);
-    const products = await listProducts(query);
+    const { products, nextCursor } = await listProducts(query);
 
-    res.status(200).json({ products });
+    res.status(200).json({ products, nextCursor });
   }),
 );
 

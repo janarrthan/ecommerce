@@ -24,6 +24,14 @@
 .grid h2 {
   font-size: 1.1rem;
 }
+.loadMore {
+  display: block;
+  margin: 2.5rem auto 0;
+}
+.loadMore[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
 .detail {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);

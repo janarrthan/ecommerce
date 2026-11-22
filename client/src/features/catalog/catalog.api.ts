@@ -20,11 +20,25 @@ export function listCategories(signal?: AbortSignal) {
   return request("/api/storefront/categories", categoriesResponseSchema, { signal });
 }
 
-/** Lists products using server-side search and category filtering. Empty filters are omitted. */
-export function listProducts(currency: string, search: string, category: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ currency });
+/** Products per page. 24 fills rows of 2, 3, or 4 columns evenly; the server allows at most 48. */
+const productPageSize = 24;
+
+/**
+ * Lists one page of products using server-side search and category filtering. Empty filters are omitted.
+ *
+ * Pass null for the first page, then the previous page's `nextCursor`, such as `"eyJjcmVhdGVkQXQiOi..."`.
+ */
+export function listProducts(
+  currency: string,
+  search: string,
+  category: string,
+  cursor: string | null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({ currency, limit: String(productPageSize) });
   if (search.trim()) query.set("search", search.trim());
   if (category.trim()) query.set("category", category.trim());
+  if (cursor) query.set("cursor", cursor);
   return request(`${productsPath}?${query}`, productsResponseSchema, { signal });
 }
 

@@ -12,7 +12,9 @@ model Product {
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
 
-  @@index([isActive])
+  // Serves the storefront list: active products, newest first, with the ID as tie-breaker. It also covers queries on
+  // isActive alone
+  @@index([isActive, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model ProductVariant {

@@ -76,7 +76,8 @@ otherwise noted.
    ```
 
    The seed creates demo catalog, pricing, and user records. Use it only with a database intended for development; it
-   updates its demo-owned records when run again.
+   updates its demo-owned records when run again. To check the product list's "Load more" button, add 30 sample
+   products with `npm run db:seed -- --sample-products`.
 
 4. Start the API from `server/`:
 
@@ -105,6 +106,11 @@ Login or registration establishes a session cookie. Authenticated mutation reque
 changes, must send the token returned by `GET /api/auth/csrf-token` in the `x-csrf-token` header. Browser clients must
 send credentials and use the configured `CLIENT_ORIGIN`. Administrative endpoints also check database-backed
 permissions.
+
+`GET /api/storefront/products` returns one page of products, newest first, and a `nextCursor`. The page size is set by
+`limit` (default 24, at most 48). To get the next page, send the same filters with `cursor` set to the previous
+`nextCursor`. A `null` cursor means the last page. The cursor is opaque: clients pass it back unchanged and must not
+build or edit it.
 
 Cart quantities are absolute: sending the same `PUT` again sets the same quantity rather than adding it twice. The
 server calculates prices and totals; clients do not supply authoritative prices.

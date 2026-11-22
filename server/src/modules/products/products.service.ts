@@ -3,6 +3,7 @@ import { prisma } from "../../shared/db/prisma.js";
 import { HttpError } from "../../shared/errors/http-error.js";
 import { resolveVariantPrice } from "../pricing/pricing.logic.js";
 import { loadPricingContext } from "../pricing/pricing.service.js";
+import { encodeProductListCursor } from "./product-list-cursor.logic.js";
 import { getOptionKey, validateSelectedValueIds } from "./product-options.logic.js";
 import type { ListProductsQuery, ProductSlugParams } from "./products.validation.js";
 
@@ -119,12 +120,45 @@ const productListSelect = {
   },
 } satisfies Prisma.ProductSelect;
 
+/** Matches a name or description that contains the search text, such as "hoodie", in any letter case. */
+function searchFilter(search: ListProductsQuery["search"]): Prisma.ProductWhereInput {
+  if (!search) return {};
+
+  return {
+    OR: [
+      { name: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ],
+  };
+}
+
+/**
+ * Matches the products that come after the cursor in newest-first order.
+ *
+ * @remarks Two products can share a creation time, so the ID decides between them. The `lte` bound repeats part of the
+ * OR on purpose: PostgreSQL can use it to jump into the index, then the OR removes the few rows already shown.
+ */
+function afterCursor(cursor: ListProductsQuery["cursor"]): Prisma.ProductWhereInput {
+  if (!cursor) return {};
+
+  return {
+    createdAt: { lte: cursor.createdAt },
+    OR: [{ createdAt: { lt: cursor.createdAt } }, { id: { lt: cursor.id } }],
+  };
+}
+
+/**
+ * Lists one page of active products, newest first, such as the first 24 products in Apparel.
+ *
+ * @remarks `nextCursor` is null on the last page. Otherwise the client sends it back as `cursor` to get the next page.
+ * Products added or archived between requests never make a product appear twice or get skipped.
+ */
 export async function listProducts(query: ListProductsQuery) {
   // Products, currency settings, and the cached rate come from one consistent database snapshot.
   return prisma.$transaction(
     async (tx) => {
       const pricingContext = await loadPricingContext(tx, query.currency);
-      const products = await tx.product.findMany({
+      const rows = await tx.product.findMany({
         where: {
           isActive: true,
           categoryLinks: query.category
@@ -136,22 +170,28 @@ export async function listProducts(query: ListProductsQuery) {
                 },
               }
             : undefined,
-          OR: query.search
-            ? [
-                { name: { contains: query.search, mode: "insensitive" } },
-                { description: { contains: query.search, mode: "insensitive" } },
-              ]
-            : undefined,
+          // Search and the cursor each need their own OR, so AND keeps them as two separate conditions.
+          AND: [searchFilter(query.search), afterCursor(query.cursor)],
         },
-        orderBy: [{ createdAt: "desc" }, { name: "asc" }],
-        select: productListSelect,
+        // This order must match afterCursor(), or pages would overlap. The Product index follows it for speed.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        // One extra row shows whether another page exists, without a separate COUNT query.
+        take: query.limit + 1,
+        select: { ...productListSelect, createdAt: true },
       });
 
-      return products.map(({ categoryLinks, variants, ...product }) => ({
-        ...product,
-        variants: variants.map((variant) => withStorefrontPriceAndImages(variant, product.images, pricingContext)),
-        categories: categoryLinks.map(({ category }) => category),
-      }));
+      const page = rows.slice(0, query.limit);
+      const last = page.at(-1);
+
+      return {
+        // createdAt was read only for the cursor, so it is left out of each product.
+        products: page.map(({ categoryLinks, variants, createdAt, ...product }) => ({
+          ...product,
+          variants: variants.map((variant) => withStorefrontPriceAndImages(variant, product.images, pricingContext)),
+          categories: categoryLinks.map(({ category }) => category),
+        })),
+        nextCursor: rows.length > query.limit && last ? encodeProductListCursor(last) : null,
+      };
     },
     { isolationLevel: "RepeatableRead" },
   );
