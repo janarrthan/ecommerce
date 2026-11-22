@@ -65,7 +65,7 @@ export function installMockApi(
       );
     }
 
-    if (url.pathname === "/api/storefront/products") return json({ products: [product] });
+    if (url.pathname === "/api/storefront/products") return json({ products: [product], nextCursor: null });
     if (url.pathname === `/api/storefront/products/${product.slug}`) return json({ product });
 
     if (url.pathname.startsWith("/api/storefront/cart")) {

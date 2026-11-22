@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { categoriesFixture, productFixture } from "../../../test/fixtures";
-import { categoriesResponseSchema, productSchema, resolvedVariantSchema } from "../catalog.schemas";
-import { resolveVariant } from "../catalog.api";
-import { categoriesQueryOptions } from "../catalog.queries";
+import {
+  categoriesResponseSchema,
+  productSchema,
+  productsResponseSchema,
+  resolvedVariantSchema,
+} from "../catalog.schemas";
+import { listProducts, resolveVariant } from "../catalog.api";
+import { categoriesQueryOptions, productsQueryOptions } from "../catalog.queries";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -29,6 +34,31 @@ describe("catalog contracts", () => {
   });
   it("caches categories under one key that does not include the currency", () => {
     expect(categoriesQueryOptions().queryKey).toEqual(["catalog", "categories"]);
+  });
+  it("reads a missing cursor as the last page, so a server from before pagination still works", () => {
+    expect(productsResponseSchema.parse({ products: [] })).toEqual({ products: [], nextCursor: null });
+    expect(productsResponseSchema.safeParse({ products: [], nextCursor: "" }).success).toBe(false);
+  });
+  it("keeps every page of one list under a key without the cursor, and stops when the cursor is null", () => {
+    const options = productsQueryOptions("USD", "hoodie", "apparel");
+    expect(options.queryKey).toEqual(["catalog", "products", "USD", "hoodie", "apparel"]);
+    expect(options.initialPageParam).toBeNull();
+    expect(options.getNextPageParam({ products: [], nextCursor: "page-2" }, [], null, [])).toBe("page-2");
+    expect(options.getNextPageParam({ products: [], nextCursor: null }, [], "page-2", [])).toBeNull();
+  });
+  it("asks for 24 products and sends the cursor only after the first page", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ products: [], nextCursor: null }));
+    vi.stubGlobal("fetch", fetch);
+    await listProducts("USD", "", "", null);
+    await listProducts("USD", "", "apparel", "page-2");
+    const [first, second] = fetch.mock.calls.map(([input]) => new URL(String(input), "https://storefront.example"));
+    expect(Object.fromEntries(first.searchParams)).toEqual({ currency: "USD", limit: "24" });
+    expect(Object.fromEntries(second.searchParams)).toEqual({
+      currency: "USD",
+      limit: "24",
+      category: "apparel",
+      cursor: "page-2",
+    });
   });
   it("encodes path segments and preserves every selected option value", async () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ variant: null, availability: "unavailable" }));

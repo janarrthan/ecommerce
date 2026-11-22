@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { usePublicQueryClient } from "../../shared/api/public-query-context";
 import { listCategories, listProducts, readPricing, readProduct, resolveVariant } from "./catalog.api";
 
@@ -37,18 +37,25 @@ export function useCategories() {
   return useQuery(categoriesQueryOptions(), usePublicQueryClient());
 }
 
-/** Separates cached catalog lists by currency, search text, and category. */
+/**
+ * Defines the product list as a series of pages, such as the first 24 USD products in Apparel, then the next 24.
+ *
+ * The key holds the filters but not the cursor, so all loaded pages of one list are cached together. Each page's
+ * `nextCursor` becomes the next request's cursor. When it is null, `hasNextPage` is false and the list is complete.
+ */
 export function productsQueryOptions(currency: string, search: string, category: string) {
-  return queryOptions({
+  return infiniteQueryOptions({
     queryKey: ["catalog", "products", currency, search, category],
-    queryFn: ({ signal }) => listProducts(currency, search, category, signal),
+    queryFn: ({ pageParam, signal }) => listProducts(currency, search, category, pageParam, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     meta: { operation: "catalog.products" },
   });
 }
 
-/** Loads products with the standard query options, such as a USD hoodie search in Apparel. */
+/** Loads the product pages with the standard query options, such as a USD hoodie search in Apparel. */
 export function useProducts(currency: string, search: string, category: string) {
-  return useQuery(productsQueryOptions(currency, search, category), usePublicQueryClient());
+  return useInfiniteQuery(productsQueryOptions(currency, search, category), usePublicQueryClient());
 }
 
 /** Separates product details by slug and currency, so EUR cannot reuse a USD price response. */

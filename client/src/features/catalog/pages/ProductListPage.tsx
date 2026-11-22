@@ -1,4 +1,4 @@
-import { type SubmitEvent } from "react";
+import { type SubmitEvent, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import { RequestError } from "../../../shared/ui/RequestError";
 import { formatMoney } from "../../../shared/lib/money";
@@ -35,7 +35,7 @@ function cheapestVariant(product: Product) {
   return [...product.variants].sort((left, right) => left.price.amountMinor - right.price.amountMinor)[0];
 }
 
-/** Keeps shareable search and category filters in the URL and lets the server filter the catalog. */
+/** Keeps shareable search and category filters in the URL, lets the server filter the catalog, and loads it in pages. */
 export function ProductListPage({ currency }: { currency: string }) {
   const [params, setParams] = useSearchParams();
   const search = params.get("search") ?? "";
@@ -45,14 +45,46 @@ export function ProductListPage({ currency }: { currency: string }) {
   const categories = categoryQuery.data?.categories ?? [];
   // Based on data, not on success: a failed background refresh keeps the last list, so the field stays usable.
   const categoriesReady = categoryQuery.data !== undefined;
+  const products = query.data?.pages.flatMap((page) => page.products) ?? [];
+  const gridRef = useRef<HTMLUListElement>(null);
+  // Remembers where "Load more" added products, so focus can move there once they render.
+  const pendingFocus = useRef<{ listKey: string; index: number } | null>(null);
+  const listKey = `${currency}:${search}:${category}`;
 
   // A shared link may name a category with no active product, such as an old bookmark. Keep it selectable so the
   // form matches the URL. While the list loads, this option also shows the URL's category in the disabled field.
   const unlistedCategory = category !== "" && !categories.some((entry) => entry.slug === category);
+  // A background refresh shows "Updating products". Loading the next page has its own label on the button.
+  const refreshing = query.isFetching && !query.isFetchingNextPage;
+  const loadMoreLabel = query.isFetchingNextPage ? "Loading more products…" : "Load more products";
+
+  // Moves focus to the first new product after "Load more". Without this, focus is lost when the button disappears
+  // on the last page, and a keyboard user would have to tab through every earlier product again.
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+
+    // The filters changed before the page arrived, so the saved position belongs to another list.
+    if (pending.listKey !== listKey) {
+      pendingFocus.current = null;
+      return;
+    }
+
+    if (products.length <= pending.index) return;
+    pendingFocus.current = null;
+    gridRef.current?.querySelectorAll<HTMLAnchorElement>(":scope > li > a")[pending.index]?.focus();
+  }, [listKey, products.length]);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setParams(filterParams(new FormData(event.currentTarget), currency, category));
+  }
+
+  function handleLoadMore() {
+    // A second click while loading would cancel the running request and start it again.
+    if (query.isFetchingNextPage) return;
+    pendingFocus.current = { listKey, index: products.length };
+    void query.fetchNextPage();
   }
 
   return (
@@ -90,16 +122,15 @@ export function ProductListPage({ currency }: { currency: string }) {
 
       {query.isPending ? (
         <p role="status">Loading products…</p>
-      ) : query.isError ? (
+      ) : query.data === undefined ? (
         <RequestError error={query.error} retry={() => void query.refetch()} />
       ) : (
         <>
-          {query.isFetching && <p role="status">Updating products…</p>}
-          {query.data.products.length === 0 && (
-            <p>No products match these filters. Try another search or clear the filters.</p>
-          )}
-          <ul className={styles.grid}>
-            {query.data.products.map((product) => {
+          {refreshing && <p role="status">Updating products…</p>}
+          {query.isRefetchError && <RequestError error={query.error} retry={() => void query.refetch()} />}
+          {products.length === 0 && <p>No products match these filters. Try another search or clear the filters.</p>}
+          <ul ref={gridRef} className={styles.grid}>
+            {products.map((product) => {
               const cheapest = cheapestVariant(product);
               const image = product.images[0];
               return (
@@ -124,6 +155,22 @@ export function ProductListPage({ currency }: { currency: string }) {
               );
             })}
           </ul>
+          {/* A failed next page keeps the products already shown. Try again asks for that page only. */}
+          {query.isFetchNextPageError ? (
+            <RequestError error={query.error} retry={() => void query.fetchNextPage()} />
+          ) : (
+            query.hasNextPage && (
+              // aria-disabled, not disabled: some browsers drop focus from a button that becomes disabled.
+              <button
+                type="button"
+                className={styles.loadMore}
+                onClick={handleLoadMore}
+                aria-disabled={query.isFetchingNextPage}
+              >
+                {loadMoreLabel}
+              </button>
+            )
+          )}
         </>
       )}
     </section>

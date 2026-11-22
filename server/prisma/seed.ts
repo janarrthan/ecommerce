@@ -111,6 +111,25 @@ const demoCategories = [
   { name: "Accessories", slug: "accessories" },
 ] as const;
 
+type ProductSeed = {
+  name: string;
+  slug: string;
+  description: string;
+  // Set only for sample products, so they sort after the demo products in the newest-first list.
+  createdAt?: Date;
+  options: readonly { name: string; values: readonly string[] }[];
+  variants: readonly {
+    name: string;
+    sku: string;
+    selections: readonly { option: string; value: string }[];
+    prices: readonly { currency: string; amountMinor: number }[];
+    stock: number;
+    imageIds: readonly string[];
+  }[];
+  images: readonly { id: string; url: string; altText: string; position: number }[];
+  categorySlugs: readonly string[];
+};
+
 const demoProducts = [
   {
     name: "Desk Organizer Set",
@@ -252,7 +271,43 @@ const demoProducts = [
     ],
     categorySlugs: ["accessories", "workspace"],
   },
-] as const;
+] as const satisfies readonly ProductSeed[];
+
+/**
+ * Builds 30 plain products, such as "Sample Product 07", so the storefront has a second page to load in development.
+ *
+ * @remarks They are added only by `npm run db:seed -- --sample-products`, so the normal demo catalog stays clean. Their
+ * creation times are fixed and older than the demo products, so the demo products stay at the top of the list.
+ */
+function sampleProducts(): ProductSeed[] {
+  const photos = demoProducts.map(({ images }) => images[0].url);
+  const categorySlugs = demoCategories.map(({ slug }) => slug);
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const imageId = `sample-product-${number}-cover`;
+
+    return {
+      name: `Sample Product ${number}`,
+      slug: `sample-product-${number}`,
+      description: "A generated product for checking the product list pages in development.",
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)),
+      options: [],
+      variants: [
+        {
+          name: "Default",
+          sku: `SAMPLE-${number}`,
+          selections: [],
+          prices: [{ currency: "USD", amountMinor: 1000 + index * 100 }],
+          stock: 10,
+          imageIds: [imageId],
+        },
+      ],
+      images: [{ id: imageId, url: photos[index % photos.length], altText: `Sample product ${number}`, position: 0 }],
+      categorySlugs: [categorySlugs[index % categorySlugs.length]],
+    };
+  });
+}
 
 async function seedAuthorization() {
   const permissionIdByCode = new Map<PermissionCode, string>();
@@ -401,7 +456,12 @@ async function main() {
     categoryIdBySlug.set(savedCategory.slug, savedCategory.id);
   }
 
-  for (const product of demoProducts) {
+  const includeSampleProducts = process.argv.includes("--sample-products");
+  const products: readonly ProductSeed[] = includeSampleProducts
+    ? [...demoProducts, ...sampleProducts()]
+    : demoProducts;
+
+  for (const product of products) {
     const categoryIds = product.categorySlugs.map((categorySlug) => {
       const categoryId = categoryIdBySlug.get(categorySlug);
 
@@ -438,6 +498,7 @@ async function main() {
         name: product.name,
         slug: product.slug,
         description: product.description,
+        createdAt: product.createdAt,
         images: {
           create: product.images.map((image) => ({ ...image })),
         },
@@ -487,6 +548,7 @@ async function main() {
   console.log(
     "Seeded demo users, roles, permissions, pricing, categories, products, variants, options, images, and variant image assignments.",
   );
+  if (includeSampleProducts) console.log("Added 30 sample products for checking the product list pages.");
   console.log("Admin: admin@example.com / DemoPass123!");
   console.log("Customer: customer@example.com / DemoPass123!");
 }

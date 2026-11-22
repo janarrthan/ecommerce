@@ -68,7 +68,16 @@ export const resolvedVariantSchema = z.discriminatedUnion("availability", [
   z.object({ availability: z.literal("in_stock"), variant: variantSchema.refine((variant) => variant.stock > 0) }),
 ]);
 
-export const productsResponseSchema = z.object({ products: z.array(productSchema) });
+/**
+ * Validates one page of the product list. `nextCursor` asks for the following page, and null means this is the last.
+ *
+ * @remarks A server from before pagination sends every product and no cursor. Reading a missing cursor as null lets this
+ * client work with that server too, so the client and server can be deployed in either order.
+ */
+export const productsResponseSchema = z.object({
+  products: z.array(productSchema),
+  nextCursor: z.string().min(1).nullable().default(null),
+});
 export const productResponseSchema = z.object({ product: productSchema });
 export const categoriesResponseSchema = z.object({ categories: z.array(categorySchema) });
 export const pricingResponseSchema = z.object({
